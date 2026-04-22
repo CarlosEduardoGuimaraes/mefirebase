@@ -1,0 +1,4 @@
+Este banco de dados foi organizado de maneira simples para gerenciar quem pode ver o que dentro do sistema. No nó de usuários, nós ligamos cada identificador único a um tipo de permissão. Por exemplo, o ID j927CTcgtOXKnpSj1hCx0o71iOA2 está definido como administrador, enquanto o ID 0kUULqHBhDPavbXDOlH06embs2D2 está definido como um usuário comum. Já no nó de documentos, as informações são separadas pelo nível de acesso que cada uma exige. O primeiro documento, chamado Manual de Integração, pode ser lido por qualquer pessoa com nível de usuário. O segundo documento, que trata da Folha de Pagamento dos Executivos, é restrito apenas para quem tem nível de administrador. O funcionamento é básico: quando alguém tenta ler um documento, o sistema verifica se a função cadastrada para aquele ID de usuário no banco de dados é compatível com o nível de acesso exigido pelo arquivo.
+
+admin@gmail.com - 123456
+usuario@gmail.com - 123456
