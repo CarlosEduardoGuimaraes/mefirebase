@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leitor de Documentos - Firebase RBAC</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; line-height: 1.6; background-color: #f4f4f9; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .login-section, .doc-section { margin-bottom: 30px; padding: 15px; border-bottom: 1px solid #eee; }
+        input { display: block; width: 100%; margin: 10px 0; padding: 8px; box-sizing: border-box; }
+        button { background: #007bff; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px; }
+        button:hover { background: #0056b3; }
+        .doc-card { background: #fff; border: 1px solid #ddd; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .admin-tag { color: #d9534f; font-weight: bold; font-size: 0.8em; }
+        .error { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Sistema de Leitura Segura</h2>
+
+    <div id="login-ui" class="login-section">
+        <h3>Entrar</h3>
+        <input type="email" id="email" placeholder="E-mail">
+        <input type="password" id="password" placeholder="Senha">
+        <button id="btn-login">Fazer Login</button>
+        <p id="auth-status"></p>
+    </div>
+
+    <div id="app-ui" class="doc-section" style="display:none;">
+        <h3>Documentos Disponíveis</h3>
+        <button id="btn-logout" style="background:#666; float:right;">Sair</button>
+        <div id="lista-documentos">Carregando documentos...</div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getDatabase, ref, get, query, orderByChild, equalTo } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBv8j0AI4Vk3XrDUM1dYeazYsgFWpOdIsw",
+        authDomain: "me-marcos2.firebaseapp.com",
+        databaseURL: "https://me-marcos2-default-rtdb.firebaseio.com",
+        projectId: "me-marcos2",
+        storageBucket: "me-marcos2.firebasestorage.app",
+        messagingSenderId: "479982383766",
+        appId: "1:479982383766:web:c8490242dc77eacea3c8b7"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    const loginUi = document.getElementById('login-ui');
+    const appUi = document.getElementById('app-ui');
+    const authStatus = document.getElementById('auth-status');
+    const listaDocs = document.getElementById('lista-documentos');
+
+    document.getElementById('btn-login').addEventListener('click', async () => {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            authStatus.innerText = "Logado com sucesso!";
+        } catch (error) {
+            authStatus.innerText = "Erro: " + error.message;
+        }
+    });
+
+    document.getElementById('btn-logout').addEventListener('click', () => signOut(auth));
+
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            loginUi.style.display = 'none';
+            appUi.style.display = 'block';
+            carregarDocumentos(user.uid);
+        } else {
+            loginUi.style.display = 'block';
+            appUi.style.display = 'none';
+            listaDocs.innerHTML = "";
+        }
+    });
+
+    async function carregarDocumentos(uid) {
+        listaDocs.innerHTML = "Verificando permissões...";
+        
+        try {
+            const roleSnapshot = await get(ref(db, `users/${uid}/role`));
+            const isAdmin = roleSnapshot.exists() && roleSnapshot.val() === 'admin';
+
+            let finalSnapshot;
+            
+            if (isAdmin) {
+                finalSnapshot = await get(ref(db, 'documents'));
+            } else {
+                const userQuery = query(ref(db, 'documents'), orderByChild('accessLevel'), equalTo('user'));
+                finalSnapshot = await get(userQuery);
+            }
+
+            if (finalSnapshot.exists()) {
+                renderizarInterface(finalSnapshot.val());
+            } else {
+                listaDocs.innerHTML = "Nenhum documento disponível para seu nível de acesso.";
+            }
+
+        } catch (error) {
+            console.error(error);
+            listaDocs.innerHTML = `<p class="error">Erro de Permissão: Suas regras de segurança bloquearam esta consulta.</p>`;
+        }
+    }
+
+    function renderizarInterface(docs) {
+        listaDocs.innerHTML = "";
+        Object.keys(docs).forEach(id => {
+            const doc = docs[id];
+            const div = document.createElement('div');
+            div.className = 'doc-card';
+            div.innerHTML = `
+                <strong>${doc.title}</strong> 
+                ${doc.accessLevel === 'admin' ? '<span class="admin-tag">[RESTRITO: ADMIN]</span>' : ''}
+                <p>${doc.content}</p>
+            `;
+            listaDocs.appendChild(div);
+        });
+    }
+</script>
+
+</body>
+</html>
