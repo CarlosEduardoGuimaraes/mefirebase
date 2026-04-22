@@ -7,19 +7,21 @@
     <style>
         body { font-family: sans-serif; padding: 20px; line-height: 1.6; background-color: #f4f4f9; }
         .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .login-section, .doc-section { margin-bottom: 30px; padding: 15px; border-bottom: 1px solid #eee; }
-        input { display: block; width: 100%; margin: 10px 0; padding: 8px; box-sizing: border-box; }
+        .login-section, .doc-section, .create-section { margin-bottom: 30px; padding: 15px; border-bottom: 1px solid #eee; }
+        input, textarea, select { display: block; width: 100%; margin: 10px 0; padding: 8px; box-sizing: border-box; }
+        textarea { height: 100px; resize: vertical; }
         button { background: #007bff; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px; }
         button:hover { background: #0056b3; }
         .doc-card { background: #fff; border: 1px solid #ddd; padding: 10px; margin: 10px 0; border-radius: 5px; }
         .admin-tag { color: #d9534f; font-weight: bold; font-size: 0.8em; }
         .error { color: red; font-weight: bold; }
+        .success { color: green; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Sistema de Leitura Segura</h2>
+    <h2>Sistema de Documentação Segura</h2>
 
     <div id="login-ui" class="login-section">
         <h3>Entrar</h3>
@@ -30,8 +32,24 @@
     </div>
 
     <div id="app-ui" class="doc-section" style="display:none;">
-        <h3>Documentos Disponíveis</h3>
         <button id="btn-logout" style="background:#666; float:right;">Sair</button>
+        
+        <div class="create-section">
+            <h3>Criar Novo Documento</h3>
+            <input type="text" id="new-title" placeholder="Título do Documento">
+            <textarea id="new-content" placeholder="Conteúdo do documento..."></textarea>
+            <label for="new-access">Nível de Acesso:</label>
+            <select id="new-access">
+                <option value="user">Usuário (Público)</option>
+                <option value="admin">Administrador (Restrito)</option>
+            </select>
+            <button id="btn-save-doc" style="background: #28a745;">Salvar Documento</button>
+            <p id="create-status"></p>
+        </div>
+
+        <hr>
+
+        <h3>Documentos Disponíveis</h3>
         <div id="lista-documentos">Carregando documentos...</div>
     </div>
 </div>
@@ -39,7 +57,8 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getDatabase, ref, get, query, orderByChild, equalTo } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    // Adicionado 'push' e 'set' para criação de dados
+    import { getDatabase, ref, get, query, orderByChild, equalTo, push, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyBv8j0AI4Vk3XrDUM1dYeazYsgFWpOdIsw",
@@ -59,14 +78,15 @@
     const appUi = document.getElementById('app-ui');
     const authStatus = document.getElementById('auth-status');
     const listaDocs = document.getElementById('lista-documentos');
+    const createStatus = document.getElementById('create-status');
+
 
     document.getElementById('btn-login').addEventListener('click', async () => {
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
-        
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            authStatus.innerText = "Logado com sucesso!";
+            authStatus.innerText = "";
         } catch (error) {
             authStatus.innerText = "Erro: " + error.message;
         }
@@ -86,6 +106,47 @@
         }
     });
 
+
+    document.getElementById('btn-save-doc').addEventListener('click', async () => {
+        const title = document.getElementById('new-title').value;
+        const content = document.getElementById('new-content').value;
+        const accessLevel = document.getElementById('new-access').value;
+
+        if (!title || !content) {
+            createStatus.className = "error";
+            createStatus.innerText = "Preencha todos os campos.";
+            return;
+        }
+
+        try {
+            createStatus.className = "";
+            createStatus.innerText = "Salvando...";
+
+            const docListRef = ref(db, 'documents');
+            const newDocRef = push(docListRef);
+
+            await set(newDocRef, {
+                title: title,
+                content: content,
+                accessLevel: accessLevel
+            });
+
+            createStatus.className = "success";
+            createStatus.innerText = "Documento criado com sucesso!";
+            
+            document.getElementById('new-title').value = "";
+            document.getElementById('new-content').value = "";
+            
+            carregarDocumentos(auth.currentUser.uid);
+
+        } catch (error) {
+            console.error(error);
+            createStatus.className = "error";
+            createStatus.innerText = "Erro de Permissão: Você não pode criar documentos com este nível de acesso.";
+        }
+    });
+
+
     async function carregarDocumentos(uid) {
         listaDocs.innerHTML = "Verificando permissões...";
         
@@ -94,7 +155,6 @@
             const isAdmin = roleSnapshot.exists() && roleSnapshot.val() === 'admin';
 
             let finalSnapshot;
-            
             if (isAdmin) {
                 finalSnapshot = await get(ref(db, 'documents'));
             } else {
@@ -105,12 +165,12 @@
             if (finalSnapshot.exists()) {
                 renderizarInterface(finalSnapshot.val());
             } else {
-                listaDocs.innerHTML = "Nenhum documento disponível para seu nível de acesso.";
+                listaDocs.innerHTML = "Nenhum documento disponível.";
             }
 
         } catch (error) {
             console.error(error);
-            listaDocs.innerHTML = `<p class="error">Erro de Permissão: Suas regras de segurança bloquearam esta consulta.</p>`;
+            listaDocs.innerHTML = `<p class="error">Erro ao carregar documentos.</p>`;
         }
     }
 
