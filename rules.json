@@ -1,0 +1,15 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "false"
+      }
+    },
+    "documents": {
+      ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'admin' || (query.orderByChild === 'accessLevel' && query.equalTo === 'user'))",
+      
+      ".indexOn": ["accessLevel"]
+    }
+  }
+}

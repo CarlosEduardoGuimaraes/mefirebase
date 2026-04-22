@@ -1,0 +1,22 @@
+{
+  "documents": {
+    "doc_001": {
+      "accessLevel": "user",
+      "content": "Conteúdo público para todos os colaboradores...",
+      "title": "Manual de Integração"
+    },
+    "doc_002": {
+      "accessLevel": "admin",
+      "content": "Dados confidenciais: R$ 50.000,00...",
+      "title": "Folha de Pagamento - Executivos"
+    }
+  },
+  "users": {
+    "0kUULqHBhDPavbXDOlH06embs2D2": {
+      "role": "user"
+    },
+    "j927CTcgtOXKnpSj1hCx0o71iOA2": {
+      "role": "admin"
+    }
+  }
+}
