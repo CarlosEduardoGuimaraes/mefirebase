@@ -8,8 +8,13 @@
     },
     "documents": {
       ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'admin' || (query.orderByChild === 'accessLevel' && query.equalTo === 'user'))",
+      ".indexOn": ["accessLevel"],
       
-      ".indexOn": ["accessLevel"]
+      "$doc_id": {
+        ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'admin' || (root.child('users/' + auth.uid + '/role').val() === 'user' && newData.child('accessLevel').val() === 'user' && (!data.exists() || data.child('accessLevel').val() === 'user')))",
+        
+        ".validate": "newData.hasChildren(['title', 'content', 'accessLevel']) && newData.child('title').isString() && newData.child('content').isString() && (newData.child('accessLevel').val() === 'admin' || newData.child('accessLevel').val() === 'user')"
+      }
     }
   }
 }
